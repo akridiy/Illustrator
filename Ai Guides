@@ -1,0 +1,140 @@
+#target illustrator
+
+// Main function to create guides around selected object
+function createCustomGuidesAroundObject() {
+    if (!app.documents.length) {
+        alert("Please open a document first.");
+        return;
+    }
+
+    var doc = app.activeDocument;
+    var selection = doc.selection;
+
+    // Check if any object is selected
+    if (selection.length === 0) {
+        alert("Please select an object first.");
+        return;
+    }
+
+    // Dialog for custom settings
+    var dialog = new Window("dialog", "Create Custom Guides");
+    dialog.orientation = "column";
+    dialog.alignChildren = "left";
+
+    // Margin settings
+    var marginGroup = dialog.add("group");
+    marginGroup.add("statictext", undefined, "Margin (pts):");
+    var marginInput = marginGroup.add("edittext", undefined, "10");
+    marginInput.characters = 6;
+
+    // Guide color settings
+    var colorGroup = dialog.add("group");
+    colorGroup.add("statictext", undefined, "Guide Color:");
+    var colorDroplist = colorGroup.add("dropdownlist", undefined, 
+        ["Cyan", "Magenta", "Yellow", "Red", "Green", "Blue"]);
+    colorDroplist.selection = 0;
+
+    // Buttons
+    var buttonGroup = dialog.add("group");
+    var okButton = buttonGroup.add("button", undefined, "OK");
+    var cancelButton = buttonGroup.add("button", undefined, "Cancel");
+
+    // Handle dialog result
+    var result = false;
+    okButton.onClick = function() {
+        result = true;
+        dialog.close();
+    };
+
+    cancelButton.onClick = function() {
+        dialog.close();
+    };
+
+    dialog.show();
+
+    if (result) {
+        try {
+            // Get values from dialog
+            var margin = parseFloat(marginInput.text);
+            var selectedColor = colorDroplist.selection.text;
+
+            // Create guides
+            createGuidesAroundSelectedObject(margin, selectedColor);
+        } catch(e) {
+            alert("Error: " + e);
+        }
+    }
+}
+
+function createGuidesAroundSelectedObject(margin, guideColor) {
+    var doc = app.activeDocument;
+    var selection = doc.selection;
+    var selectedItem = selection[0];
+    var bounds = selectedItem.geometricBounds;
+
+    // geometricBounds returns [left, top, right, bottom]
+    var left   = bounds[0] - margin;
+    var top    = bounds[1] + margin;
+    var right  = bounds[2] + margin;
+    var bottom = bounds[3] - margin;
+
+    // Create guides with specified color
+    createGuide("vertical", left, guideColor);
+    createGuide("vertical", right, guideColor);
+    createGuide("horizontal", top, guideColor);
+    createGuide("horizontal", bottom, guideColor);
+}
+
+// Create a path item and convert it to a guide
+function createGuide(direction, position, color) {
+    var doc = app.activeDocument;
+
+    // Create a new path item
+    var guidePath = doc.pathItems.add();
+    guidePath.stroked = true;
+    guidePath.filled = false;
+
+    // Make the path large enough to span the document
+    if (direction === "vertical") {
+        // Vertical line at x = position
+        guidePath.setEntirePath([
+            [position, -10000],
+            [position,  10000]
+        ]);
+    } else if (direction === "horizontal") {
+        // Horizontal line at y = position
+        guidePath.setEntirePath([
+            [-10000, position],
+            [ 10000, position]
+        ]);
+    }
+
+    // Convert path item into a guide
+    guidePath.guides = true;
+
+    // Set the stroke color
+    setGuideColor(guidePath, color);
+}
+
+function setGuideColor(guidePath, colorName) {
+    var colors = {
+        "Cyan":    [100,   0,   0,   0],
+        "Magenta": [  0, 100,   0,   0],
+        "Yellow":  [  0,   0, 100,   0],
+        "Red":     [  0, 100, 100,   0],
+        "Green":   [100,   0, 100,   0],
+        "Blue":    [100, 100,   0,   0]
+    };
+
+    if (colors[colorName]) {
+        var newColor = new CMYKColor();
+        newColor.cyan    = colors[colorName][0];
+        newColor.magenta = colors[colorName][1];
+        newColor.yellow  = colors[colorName][2];
+        newColor.black   = colors[colorName][3];
+        guidePath.strokeColor = newColor;
+    }
+}
+
+// Run the script
+createCustomGuidesAroundObject();
